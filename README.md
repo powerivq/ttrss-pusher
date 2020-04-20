@@ -1,6 +1,8 @@
 Receive instant push notification for new articles on your [Tiny Tiny RSS](https://tt-rss.org/)
 instance.
 
+![style](https://user-images.githubusercontent.com/1321403/79706886-91f5b080-826f-11ea-8e81-2e07ba4b1b68.png)
+
 ## Supported browsers
 I have not tested all of them, but it should work for:
 1. Chrome 50+
@@ -22,6 +24,8 @@ in addition to what Tiny Tiny RSS already requires:
 3. Extract it into your Tiny Tiny RSS plugins.local folder
 4. It is a system plugin, therefore you need to [turn it on in the config.php file](https://git.tt-rss.org/fox/tt-rss/wiki/Plugins). The plugin's name is `pusher`
 5. In user preference, create a filter that triggers this plugin to send push notifications
+
+![config-pusher](https://user-images.githubusercontent.com/1321403/79706856-7be7f000-826f-11ea-971f-f0b38dd3b139.png)
 
 ## Dev dependencies
 In order to build the project, you need:
