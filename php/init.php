@@ -25,8 +25,9 @@ class Pusher extends Plugin implements IHandler {
         $this->plugin_host->load_data();
         $this->plugin_host->add_handler('pusher', 'update_subscription', $this);
         $this->plugin_host->add_handler('pusher', 'mark_read', $this);
-        $this->plugin_host->add_handler('pusher', 'worker', $this);
         $this->plugin_host->add_filter_action($this, 'push', 'Send push notification to browsers');
+        $this->plugin_host->add_hook($host::HOOK_RENDER_ARTICLE, $this);
+        $this->plugin_host->add_hook($host::HOOK_RENDER_ARTICLE_CDM, $this);
         $this->init_keys();
     }
 
@@ -71,6 +72,9 @@ class Pusher extends Plugin implements IHandler {
     }
 
     function hook_article_filter_action($article, $action) {
+        if (in_array('pusher_sent', $article['tags'])) return $article;
+        $article['tags'][] = 'pusher_sent';
+
         $params = array_merge(array(
             'title' => $article['title'],
             'link' => $article['link'], 
@@ -101,8 +105,10 @@ class Pusher extends Plugin implements IHandler {
             $subscription = Subscription::create((array) $sub);
             $webPush->sendNotification($subscription, $payload);
         }
+
+        Debug::log(sprintf('Pushing %s', $article['title']));
         foreach ($webPush->flush() as $report) {
-            error_log(($report->isSuccess() ? 'Succeed' : 'Failed') . ': ' . $report->getReason());
+            Debug::log(($report->isSuccess() ? 'Succeed' : 'Failed') . ': ' . $report->getReason());
         }
         return $article;
     }
@@ -131,9 +137,19 @@ class Pusher extends Plugin implements IHandler {
         $this->plugin_host->set($this, self::SUBSCRIPTION_PROP, serialize($sub));
     }
 
-    function worker() {
-        header('content-type: application/javascript');
-        echo file_get_contents(__DIR__ . "/worker.js");
+    function hide_pusher_tag($article) {
+        $tags = array_map('trim', explode(',', $article['tag_cache']));
+        $tags = array_diff($tags, ['pusher_sent']);
+        $article['tag_cache'] = implode(',', $tags);
+        return $article;
+    }
+
+    function hook_render_article($article) {
+        return $this->hide_pusher_tag($article);
+    }
+
+    function hook_render_article_cdm($article) {
+        return $this->hide_pusher_tag($article);
     }
 
     function csrf_ignore($method) {
