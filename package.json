@@ -1,0 +1,24 @@
+{
+  "name": "ttrss-pusher",
+  "author": "powerivq",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/powerivq/ttrss-pusher"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.9.0",
+    "@babel/preset-env": "^7.9.5",
+    "babel-loader": "^8.1.0",
+    "copy-webpack-plugin": "^5.1.1",
+    "eslint": "^6.8.0",
+    "eslint-config-google": "^0.14.0",
+    "webpack": "^4.42.1",
+    "webpack-cli": "^3.3.11"
+  },
+  "scripts": {
+    "prod": "webpack --mode=production",
+    "dev": "webpack --mode=development",
+    "clean": "rm -rf ./dist"
+  }
+}
