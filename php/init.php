@@ -87,17 +87,20 @@ class Pusher extends Plugin implements IHandler {
 
     function has_pushed($link) {
         $sha1 = sha1($link);
+        $uid = $this->plugin_host->get_owner_uid();
         $find_stmt = $this->plugin_host->get_pdo()->prepare('SELECT EXISTS(
-            SELECT * FROM ttrss_pusher WHERE url_hash=?)');
-        $find_stmt->execute([$sha1]);
+            SELECT * FROM ttrss_pusher WHERE uid=? AND url_hash=?)');
+        $find_stmt->execute([$uid, $sha1]);
         $result = $find_stmt->fetch();
         if ($result[0]) {
             $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_pusher
-                SET last_accessed=NOW() WHERE url_hash=?')->execute([$sha1]);
+                SET last_accessed=NOW() WHERE uid=? AND url_hash=?')
+                ->execute([$uid, $sha1]);
             return true;
         }
         $this->plugin_host->get_pdo()->prepare('INSERT INTO ttrss_pusher
-            (url_hash, last_accessed) VALUES (?, NOW())')->execute([$sha1]);
+            (url_hash, last_accessed, uid) VALUES (?, NOW(), ?)')
+            ->execute([$sha1, $uid]);
         return false;
     }
 
