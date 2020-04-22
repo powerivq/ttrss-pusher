@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "sourceMap": true,
+    "target": "es5",
+    "allowJs": true,
+    "lib": ["es6", "dom"]
+  },
+  "compileOnSave": true,
+  "include": [
+    "ts/"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

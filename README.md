@@ -25,6 +25,7 @@ in addition to what Tiny Tiny RSS already requires:
 3. Extract it into your Tiny Tiny RSS plugins.local folder
 4. It is a system plugin, therefore you need to [turn it on in the config.php file](https://git.tt-rss.org/fox/tt-rss/wiki/Plugins). The plugin's name is `pusher`
 5. In user preference, create a filter that triggers this plugin to send push notifications
+6. In order to display HTTP images, you need to turn on `af_proxy_http` plugin
 
 ![config-pusher](https://user-images.githubusercontent.com/1321403/79706856-7be7f000-826f-11ea-971f-f0b38dd3b139.png)
 

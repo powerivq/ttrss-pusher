@@ -4,23 +4,25 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.js$/,
-        use: 'babel-loader',
+        test: /\.ts$/,
+        use: 'ts-loader',
+        exclude: ['/node_modules/'],
       },
     ],
   },
+  devtool: 'source-map',
+  resolve: {
+    extensions: ['.ts'],
+  },
   entry: {
-    main: './js/main.js',
-    worker: './js/worker.js',
+    main: './ts/main.ts',
+    worker: './ts/worker.ts',
   },
   output: {
     filename: '[name].js',
     path: __dirname + '/dist/pusher',
   },
   plugins: [
-    new CopyWebpackPlugin([
-      {from: 'vendor', to: 'vendor'},
-      {from: 'php'},
-    ]),
+    new CopyWebpackPlugin([{from: 'vendor', to: 'vendor'}, {from: 'php'}]),
   ],
 };

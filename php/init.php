@@ -17,18 +17,19 @@ class Pusher extends Plugin implements IHandler {
         return array(1.0,
             'Show push notification for new posts',
             'powerivq',
-            true);
+            true,
+            'https://github.com/powerivq/ttrss-pusher');
     }
 
     function init($host) {
         $this->plugin_host = $host;
-        $this->plugin_host->load_data();
-        $this->plugin_host->add_handler('pusher', 'update_subscription', $this);
-        $this->plugin_host->add_handler('pusher', 'mark_read', $this);
-        $this->plugin_host->add_filter_action($this, 'push', 'Send push notification to browsers');
-        $this->plugin_host->add_hook($host::HOOK_RENDER_ARTICLE, $this);
-        $this->plugin_host->add_hook($host::HOOK_RENDER_ARTICLE_CDM, $this);
-        $this->init_keys();
+        $host->add_handler('pusher', 'update_subscription', $this);
+        $host->add_handler('pusher', 'mark_read', $this);
+        $host->add_filter_action($this, 'push', 'Send push notification to browsers');
+        $host->add_hook($host::HOOK_RENDER_ARTICLE, $this);
+        $host->add_hook($host::HOOK_RENDER_ARTICLE_CDM, $this);
+        $host->add_hook($host::HOOK_FETCH_FEED, $this);
+        $host->add_hook($host::HOOK_HOUSE_KEEPING, $this);
     }
 
     function init_keys() {
@@ -42,8 +43,13 @@ class Pusher extends Plugin implements IHandler {
         $this->plugin_host->set($this, self::PUBLIC_KEY_PROP, $keys[self::PUBLIC_KEY_PROP]);
     }
 
+    function init_database() {
+        $sth = $this->plugin_host->get_pdo()->prepare(file_get_contents(__DIR__ . '/init.sql'));
+        $sth->execute([]);
+    }
+
     function get_excerpt_img($html) {
-        $ret = array();
+        $ret = [];
 
         $doc = new DOMDocument();
         if (strpos($html, '<html') === false) {
@@ -55,6 +61,14 @@ class Pusher extends Plugin implements IHandler {
         foreach ($xpath->query('//img') as $img) {
             $ret['image'] = $img->getAttribute('src');
             break;
+        }
+        if (strpos($ret['image'], 'http://') === 0) {
+            $ret['image'] = SELF_URL_PATH . '/public.php?' . http_build_query(array(
+                'op' => 'pluginhandler',
+                'plugin'=> 'af_proxy_http',
+                'pmethod' => 'imgproxy',
+                'url' => $ret['image']
+            ));
         }
 
         foreach (['h1', 'h2', 'h3', 'h4', 'h5'] as $tag) {
@@ -71,13 +85,28 @@ class Pusher extends Plugin implements IHandler {
         return $ret;
     }
 
+    function has_pushed($link) {
+        $sha1 = sha1($link);
+        $find_stmt = $this->plugin_host->get_pdo()->prepare('SELECT EXISTS(
+            SELECT * FROM ttrss_pusher WHERE url_hash=?)');
+        $find_stmt->execute([$sha1]);
+        $result = $find_stmt->fetch();
+        if ($result[0]) {
+            $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_pusher
+                SET last_accessed=NOW() WHERE url_hash=?')->execute([$sha1]);
+            return true;
+        }
+        $this->plugin_host->get_pdo()->prepare('INSERT INTO ttrss_pusher
+            (url_hash, last_accessed) VALUES (?, NOW())')->execute([$sha1]);
+        return false;
+    }
+
     function hook_article_filter_action($article, $action) {
-        if (in_array('pusher_sent', $article['tags'])) return $article;
-        $article['tags'][] = 'pusher_sent';
+        if ($this->has_pushed($article['link'])) return $article;
 
         $params = array_merge(array(
             'title' => $article['title'],
-            'link' => $article['link'], 
+            'link' => $article['link'],
             'guid' => $article['guid_hashed'],
             'uid' => $article['owner_uid'],
         ), $this->get_excerpt_img($article['content']));
@@ -86,6 +115,7 @@ class Pusher extends Plugin implements IHandler {
             'TTL' => 600,
         ];
 
+        $this->plugin_host->load_data();
         $auth = [
             'VAPID' => [
                 'subject' => 'mailto:noreply@github.com',
@@ -96,19 +126,26 @@ class Pusher extends Plugin implements IHandler {
 
         $payload = json_encode($params);
         $subscriptions = $this->plugin_host->get($this, self::SUBSCRIPTION_PROP);
-        if ($subscriptions === false) return $article;
+        if (!$subscriptions) return $article;
         $webPush = new WebPush($auth, $defaultOptions);
         $webPush->setDefaultOptions($defaultOptions);
-        foreach (unserialize($subscriptions) as $sub) {
-            $sub = (array) $sub;
-            if (isset($sub['keys'])) $sub['keys'] = (array) $sub['keys'];
-            $subscription = Subscription::create((array) $sub);
+
+        $browser_ids = [];
+        foreach ($subscriptions as $browser_id => $subscription) {
+            $browser_ids[] = $browser_id;
             $webPush->sendNotification($subscription, $payload);
         }
 
+        $unsub_map = [];
         Debug::log(sprintf('Pushing %s', $article['title']));
-        foreach ($webPush->flush() as $report) {
+        foreach ($webPush->flush() as $index => $report) {
+            if ($report->isSubscriptionExpired()) {
+                $unsub_map[$browser_id] = null;
+            }
             Debug::log(($report->isSuccess() ? 'Succeed' : 'Failed') . ': ' . $report->getReason());
+        }
+        if ($unsub_map) {
+            $this->set_subscription_for_browser($unsub_map);
         }
         return $article;
     }
@@ -117,24 +154,32 @@ class Pusher extends Plugin implements IHandler {
         $uid = $_SESSION['uid'];
         $guid = $_POST['guid'];
 
-        $sth = $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_user_entries ue
+        $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_user_entries ue
             JOIN ttrss_entries e ON (e.id = ue.ref_id)
-            SET ue.unread=0 WHERE e.guid=? AND ue.owner_uid=?');
-        $sth->execute([$guid, $uid]);
+            SET ue.unread=0 WHERE e.guid=? AND ue.owner_uid=?')->execute([$guid, $uid]);
     }
 
     function update_subscription() {
-        $subscription = json_decode($_POST['subscription']);
+        $subscription_arr = json_decode($_POST['subscription'], true);
         $browser_id = $_POST['browserId'];
+        error_log(print_r($subscription_arr, true));
+        $this->set_subscription_for_browser(
+            array($browser_id =>
+                $subscription_arr ? Subscription::create($subscription_arr) : null
+        ));
+    }
 
-        $sub_str = $this->plugin_host->get($this, self::SUBSCRIPTION_PROP);
-        $sub = $sub_str === false ? array() : unserialize($sub_str);
-        if ($subscription === null) {
-            unset($sub[$browser_id]);
-        } else {
-            $sub[$browser_id] = $subscription;
+    function set_subscription_for_browser($browser_id_to_subscription) {
+        $this->plugin_host->load_data();
+        $subscriptions = $this->plugin_host->get($this, self::SUBSCRIPTION_PROP);
+        foreach ($browser_id_to_subscription as $browser_id => $subscription) {
+            if ($subscription === null) {
+                unset($subscriptions[$browser_id]);
+            } else {
+                $subscriptions[$browser_id] = $subscription;
+            }
         }
-        $this->plugin_host->set($this, self::SUBSCRIPTION_PROP, serialize($sub));
+        $this->plugin_host->set($this, self::SUBSCRIPTION_PROP, $subscriptions);
     }
 
     function hide_pusher_tag($article) {
@@ -152,6 +197,16 @@ class Pusher extends Plugin implements IHandler {
         return $this->hide_pusher_tag($article);
     }
 
+    function hook_fetch_feed($feed_data, $fetch_url, $owner_uid, $feed, $num, $auth_login, $auth_pass) {
+        $this->init_database();
+        return $feed_data;
+    }
+
+    function hook_house_keeping() {
+        $this->plugin_host->get_pdo()->prepare('DELETE FROM ttrss_pusher 
+            WHERE last_accessed<NOW()-INTERVAL 30 DAY')->execute([]);
+    }
+
     function csrf_ignore($method) {
         return true;
     }
@@ -164,6 +219,8 @@ class Pusher extends Plugin implements IHandler {
     }
 
     function get_js() {
+        $this->plugin_host->load_data();
+        $this->init_keys();
         $publicKey = $this->plugin_host->get($this, self::PUBLIC_KEY_PROP);
         return "window.pusherPublicKey='$publicKey';" . file_get_contents(__DIR__ . "/main.js");
     }
