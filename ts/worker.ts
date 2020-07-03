@@ -20,7 +20,7 @@ function supportsImageProp(): boolean {
   return !/Mac OS X/.test(navigator.userAgent);
 }
 
-function showMessage(data: Data): void {
+function showMessage(data: Data): Promise<undefined> {
   const options = {
     data: data,
     body: data.excerpt,
@@ -28,7 +28,7 @@ function showMessage(data: Data): void {
     image: data.image,
     silent: true,
   };
-  self.registration.showNotification(data.title, options);
+  return self.registration.showNotification(data.title, options);
 }
 
 self.addEventListener('push', function (event) {
