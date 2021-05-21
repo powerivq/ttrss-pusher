@@ -108,8 +108,8 @@ class Pusher extends Plugin implements IHandler {
         if ($this->has_pushed($article['link'])) return $article;
 
         $params = array_merge(array(
-            'title' => $article['title'],
-            'link' => $article['link'],
+            'title' => mb_substr($article['title'], 0, 200),
+            'link' => mb_substr($article['link'], 0, 500),
             'guid' => $article['guid_hashed'],
             'uid' => $article['owner_uid'],
         ), $this->get_excerpt_img($article['content']));
