@@ -118,7 +118,6 @@ class Pusher extends Plugin implements IHandler {
             'TTL' => 600,
         ];
 
-        $this->plugin_host->load_data();
         $auth = [
             'VAPID' => [
                 'subject' => 'mailto:noreply@github.com',
@@ -173,7 +172,6 @@ class Pusher extends Plugin implements IHandler {
     }
 
     function set_subscription_for_browser($browser_id_to_subscription) {
-        $this->plugin_host->load_data();
         $subscriptions = $this->plugin_host->get($this, self::SUBSCRIPTION_PROP);
         foreach ($browser_id_to_subscription as $browser_id => $subscription) {
             if ($subscription === null) {
@@ -222,7 +220,6 @@ class Pusher extends Plugin implements IHandler {
     }
 
     function get_js() {
-        $this->plugin_host->load_data();
         $this->init_keys();
         $publicKey = $this->plugin_host->get($this, self::PUBLIC_KEY_PROP);
         return "window.pusherPublicKey='$publicKey';" . file_get_contents(__DIR__ . "/main.js");
