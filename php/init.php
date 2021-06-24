@@ -63,7 +63,7 @@ class Pusher extends Plugin implements IHandler {
             break;
         }
         if (isset($ret['image']) && strpos($ret['image'], 'http://') === 0) {
-            $ret['image'] = SELF_URL_PATH . '/public.php?' . http_build_query(array(
+            $ret['image'] = getenv('SELF_URL_PATH') . '/public.php?' . http_build_query(array(
                 'op' => 'pluginhandler',
                 'plugin'=> 'af_proxy_http',
                 'pmethod' => 'imgproxy',
