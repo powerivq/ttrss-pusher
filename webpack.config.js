@@ -23,6 +23,8 @@ module.exports = {
     path: __dirname + '/dist/pusher',
   },
   plugins: [
-    new CopyWebpackPlugin([{from: 'vendor', to: 'vendor'}, {from: 'php'}]),
+    new CopyWebpackPlugin({
+      patterns: [{from: 'vendor', to: 'vendor'}, {from: 'php'}]
+    }),
   ],
 };
