@@ -59,8 +59,11 @@ class Pusher extends Plugin implements IHandler {
         $xpath = new DOMXPath($doc);
 
         foreach ($xpath->query('//img') as $img) {
-            $ret['image'] = $img->getAttribute('src');
-            break;
+            $src = $img->getAttribute('src');
+            if (strlen($src) <= 200) {
+                $ret['image'] = $src;
+                break;
+            }
         }
         if (isset($ret['image']) && strpos($ret['image'], 'http://') === 0) {
             $ret['image'] = getenv('SELF_URL_PATH') . '/public.php?' . http_build_query(array(
