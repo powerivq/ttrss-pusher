@@ -18,4 +18,8 @@ jobs:
       - run: yarn
       - run: npm run prod
       - run: npm run release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: bundle
+          path: dist/release.zip
 
