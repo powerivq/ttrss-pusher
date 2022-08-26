@@ -1,0 +1,21 @@
+name: Build on main branch push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+      - run: curl --compressed -o- -L https://yarnpkg.com/install.sh | bash
+      - run: yarn
+      - run: npm run prod
+      - run: npm run release
+
