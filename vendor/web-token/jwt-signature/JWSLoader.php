@@ -2,47 +2,25 @@
 
 declare(strict_types=1);
 
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2014-2018 Spomky-Labs
- *
- * This software may be modified and distributed under the terms
- * of the MIT license.  See the LICENSE file for details.
- */
-
 namespace Jose\Component\Signature;
 
+use Exception;
 use Jose\Component\Checker\HeaderCheckerManager;
 use Jose\Component\Core\JWK;
 use Jose\Component\Core\JWKSet;
 use Jose\Component\Signature\Serializer\JWSSerializerManager;
+use Throwable;
 
+/**
+ * @see \Jose\Tests\Component\Signature\JWSLoaderTest
+ */
 class JWSLoader
 {
-    /**
-     * @var JWSVerifier
-     */
-    private $jwsVerifier;
-
-    /**
-     * @var HeaderCheckerManager|null
-     */
-    private $headerCheckerManager;
-
-    /**
-     * @var JWSSerializerManager
-     */
-    private $serializerManager;
-
-    /**
-     * JWSLoader constructor.
-     */
-    public function __construct(JWSSerializerManager $serializerManager, JWSVerifier $jwsVerifier, ?HeaderCheckerManager $headerCheckerManager)
-    {
-        $this->serializerManager = $serializerManager;
-        $this->jwsVerifier = $jwsVerifier;
-        $this->headerCheckerManager = $headerCheckerManager;
+    public function __construct(
+        private readonly JWSSerializerManager $serializerManager,
+        private readonly JWSVerifier $jwsVerifier,
+        private readonly ?HeaderCheckerManager $headerCheckerManager
+    ) {
     }
 
     /**
@@ -70,10 +48,8 @@ class JWSLoader
     }
 
     /**
-     * This method will try to load and verify the token using the given key.
-     * It returns a JWS and will populate the $signature variable in case of success, otherwise an exception is thrown.
-     *
-     * @throws \Exception
+     * This method will try to load and verify the token using the given key. It returns a JWS and will populate the
+     * $signature variable in case of success, otherwise an exception is thrown.
      */
     public function loadAndVerifyWithKey(string $token, JWK $key, ?int &$signature, ?string $payload = null): JWS
     {
@@ -83,13 +59,15 @@ class JWSLoader
     }
 
     /**
-     * This method will try to load and verify the token using the given key set.
-     * It returns a JWS and will populate the $signature variable in case of success, otherwise an exception is thrown.
-     *
-     * @throws \Exception
+     * This method will try to load and verify the token using the given key set. It returns a JWS and will populate the
+     * $signature variable in case of success, otherwise an exception is thrown.
      */
-    public function loadAndVerifyWithKeySet(string $token, JWKSet $keyset, ?int &$signature, ?string $payload = null): JWS
-    {
+    public function loadAndVerifyWithKeySet(
+        string $token,
+        JWKSet $keyset,
+        ?int &$signature,
+        ?string $payload = null
+    ): JWS {
         try {
             $jws = $this->serializerManager->unserialize($token);
             $nbSignatures = $jws->countSignatures();
@@ -100,22 +78,22 @@ class JWSLoader
                     return $jws;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Throwable) {
             // Nothing to do. Exception thrown just after
         }
 
-        throw new \Exception('Unable to load and verify the token.');
+        throw new Exception('Unable to load and verify the token.');
     }
 
     private function processSignature(JWS $jws, JWKSet $keyset, int $signature, ?string $payload): bool
     {
         try {
-            if (null !== $this->headerCheckerManager) {
+            if ($this->headerCheckerManager !== null) {
                 $this->headerCheckerManager->check($jws, $signature);
             }
 
             return $this->jwsVerifier->verifyWithKeySet($jws, $keyset, $signature, $payload);
-        } catch (\Exception $e) {
+        } catch (Throwable) {
             return false;
         }
     }

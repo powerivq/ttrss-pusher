@@ -2,60 +2,28 @@
 
 declare(strict_types=1);
 
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2014-2018 Spomky-Labs
- *
- * This software may be modified and distributed under the terms
- * of the MIT license.  See the LICENSE file for details.
- */
-
 namespace Jose\Component\Signature;
 
+use function array_key_exists;
+use InvalidArgumentException;
+
+/**
+ * @see \Jose\Tests\Component\Signature\SignatureTest
+ */
 class Signature
 {
-    /**
-     * @var string|null
-     */
-    private $encodedProtectedHeader;
+    private readonly ?string $encodedProtectedHeader;
 
-    /**
-     * @var array
-     */
-    private $protectedHeader;
+    private readonly array $protectedHeader;
 
-    /**
-     * @var array
-     */
-    private $header;
-
-    /**
-     * @var string
-     */
-    private $signature;
-
-    /**
-     * Signature constructor.
-     */
-    private function __construct(string $signature, array $protectedHeader, ?string $encodedProtectedHeader, array $header)
-    {
-        $this->protectedHeader = null === $encodedProtectedHeader ? [] : $protectedHeader;
+    public function __construct(
+        private readonly string $signature,
+        array $protectedHeader,
+        ?string $encodedProtectedHeader,
+        private readonly array $header
+    ) {
+        $this->protectedHeader = $encodedProtectedHeader === null ? [] : $protectedHeader;
         $this->encodedProtectedHeader = $encodedProtectedHeader;
-        $this->signature = $signature;
-        $this->header = $header;
-    }
-
-    /**
-     * Creates a new signature.
-     *
-     * @internal
-     *
-     * @return Signature
-     */
-    public static function create(string $signature, array $protectedHeader, ?string $encodedProtectedHeader, array $header = []): self
-    {
-        return new self($signature, $protectedHeader, $encodedProtectedHeader, $header);
     }
 
     /**
@@ -95,7 +63,7 @@ class Signature
             return $this->getProtectedHeader()[$key];
         }
 
-        throw new \InvalidArgumentException(\sprintf('The protected header "%s" does not exist', $key));
+        throw new InvalidArgumentException(sprintf('The protected header "%s" does not exist', $key));
     }
 
     /**
@@ -105,7 +73,7 @@ class Signature
      */
     public function hasProtectedHeaderParameter(string $key): bool
     {
-        return \array_key_exists($key, $this->getProtectedHeader());
+        return array_key_exists($key, $this->getProtectedHeader());
     }
 
     /**
@@ -121,7 +89,7 @@ class Signature
             return $this->header[$key];
         }
 
-        throw new \InvalidArgumentException(\sprintf('The header "%s" does not exist', $key));
+        throw new InvalidArgumentException(sprintf('The header "%s" does not exist', $key));
     }
 
     /**
@@ -131,7 +99,7 @@ class Signature
      */
     public function hasHeaderParameter(string $key): bool
     {
-        return \array_key_exists($key, $this->header);
+        return array_key_exists($key, $this->header);
     }
 
     /**

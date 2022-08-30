@@ -2,70 +2,53 @@
 
 declare(strict_types=1);
 
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2014-2018 Spomky-Labs
- *
- * This software may be modified and distributed under the terms
- * of the MIT license.  See the LICENSE file for details.
- */
-
 namespace Jose\Component\Core;
 
-use Base64Url\Base64Url;
+use function array_key_exists;
+use function in_array;
+use InvalidArgumentException;
+use function is_array;
+use const JSON_THROW_ON_ERROR;
+use const JSON_UNESCAPED_SLASHES;
+use const JSON_UNESCAPED_UNICODE;
+use JsonSerializable;
+use ParagonIE\ConstantTime\Base64UrlSafe;
 
-class JWK implements \JsonSerializable
+/**
+ * @see \Jose\Tests\Component\Core\JWKTest
+ */
+class JWK implements JsonSerializable
 {
-    /**
-     * @var array
-     */
-    private $values = [];
+    private array $values = [];
 
     /**
-     * JWK constructor.
+     * Creates a JWK object using the given values. The member "kty" is mandatory. Other members are NOT checked.
      */
     public function __construct(array $values)
     {
-        if (!\array_key_exists('kty', $values)) {
-            throw new \InvalidArgumentException('The parameter "kty" is mandatory.');
+        if (! isset($values['kty'])) {
+            throw new InvalidArgumentException('The parameter "kty" is mandatory.');
         }
-
         $this->values = $values;
     }
 
     /**
-     * Creates a JWK object using the given values.
-     * The member "kty" is mandatory. Other members are NOT checked.
-     *
-     * @deprecated Will be removed in v2.0. Please use constructor instead
-     *
-     * @return JWK
-     */
-    public static function create(array $values): self
-    {
-        return new self($values);
-    }
-
-    /**
      * Creates a JWK object using the given Json string.
-     *
-     * @return JWK
      */
     public static function createFromJson(string $json): self
     {
-        $data = \json_decode($json, true);
-        if (!\is_array($data)) {
-            throw new \InvalidArgumentException('Invalid argument.');
+        $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        if (! is_array($data)) {
+            throw new InvalidArgumentException('Invalid argument.');
         }
 
-        return self::create($data);
+        return new self($data);
     }
 
     /**
      * Returns the values to be serialized.
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         return $this->values;
     }
@@ -75,14 +58,12 @@ class JWK implements \JsonSerializable
      *
      * @param string $key The key
      *
-     * @throws \InvalidArgumentException
-     *
      * @return mixed|null
      */
     public function get(string $key)
     {
-        if (!$this->has($key)) {
-            throw new \InvalidArgumentException(\sprintf('The value identified by "%s" does not exist.', $key));
+        if (! $this->has($key)) {
+            throw new InvalidArgumentException(sprintf('The value identified by "%s" does not exist.', $key));
         }
 
         return $this->values[$key];
@@ -95,7 +76,7 @@ class JWK implements \JsonSerializable
      */
     public function has(string $key): bool
     {
-        return \array_key_exists($key, $this->values);
+        return array_key_exists($key, $this->values);
     }
 
     /**
@@ -112,20 +93,20 @@ class JWK implements \JsonSerializable
      * Returns the thumbprint of the key.
      *
      * @see https://tools.ietf.org/html/rfc7638
-     *
-     * @throws \InvalidArgumentException
      */
     public function thumbprint(string $hash_algorithm): string
     {
-        if (!\in_array($hash_algorithm, \hash_algos(), true)) {
-            throw new \InvalidArgumentException(\sprintf('The hash algorithm "%s" is not supported.', $hash_algorithm));
+        if (! in_array($hash_algorithm, hash_algos(), true)) {
+            throw new InvalidArgumentException(sprintf('The hash algorithm "%s" is not supported.', $hash_algorithm));
+        }
+        $values = array_intersect_key($this->values, array_flip(['kty', 'n', 'e', 'crv', 'x', 'y', 'k']));
+        ksort($values);
+        $input = json_encode($values, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($input === false) {
+            throw new InvalidArgumentException('Unable to compute the key thumbprint');
         }
 
-        $values = \array_intersect_key($this->values, \array_flip(['kty', 'n', 'e', 'crv', 'x', 'y', 'k']));
-        \ksort($values);
-        $input = \json_encode($values, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        return Base64Url::encode(\hash($hash_algorithm, $input, true));
+        return Base64UrlSafe::encodeUnpadded(hash($hash_algorithm, $input, true));
     }
 
     /**
@@ -136,12 +117,10 @@ class JWK implements \JsonSerializable
      * - unknown keys.
      *
      * Known keys are "oct", "RSA", "EC" and "OKP".
-     *
-     * @return JWK
      */
     public function toPublic(): self
     {
-        $values = \array_diff_key($this->values, \array_flip(['p', 'd', 'q', 'dp', 'dq', 'qi']));
+        $values = array_diff_key($this->values, array_flip(['p', 'd', 'q', 'dp', 'dq', 'qi']));
 
         return new self($values);
     }

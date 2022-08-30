@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Minishlink\WebPush;
 
-class Subscription
+class Subscription implements SubscriptionInterface
 {
     /** @var string */
     private $endpoint;
@@ -28,12 +28,7 @@ class Subscription
     private $contentEncoding;
 
     /**
-     * Subscription constructor.
-     *
-     * @param string $endpoint
-     * @param null|string $publicKey
-     * @param null|string $authToken
-     * @param string $contentEncoding (Optional) Must be "aesgcm"
+     * @param string|null $contentEncoding (Optional) Must be "aesgcm"
      * @throws \ErrorException
      */
     public function __construct(
@@ -57,13 +52,10 @@ class Subscription
     }
 
     /**
-     * Subscription factory.
-     *
      * @param array $associativeArray (with keys endpoint, publicKey, authToken, contentEncoding)
-     * @return Subscription
      * @throws \ErrorException
      */
-    public static function create(array $associativeArray): Subscription
+    public static function create(array $associativeArray): self
     {
         if (array_key_exists('keys', $associativeArray) && is_array($associativeArray['keys'])) {
             return new self(
@@ -89,7 +81,7 @@ class Subscription
     }
 
     /**
-     * @return string
+     * {@inheritDoc}
      */
     public function getEndpoint(): string
     {
@@ -97,7 +89,7 @@ class Subscription
     }
 
     /**
-     * @return null|string
+     * {@inheritDoc}
      */
     public function getPublicKey(): ?string
     {
@@ -105,7 +97,7 @@ class Subscription
     }
 
     /**
-     * @return null|string
+     * {@inheritDoc}
      */
     public function getAuthToken(): ?string
     {
@@ -113,7 +105,7 @@ class Subscription
     }
 
     /**
-     * @return null|string
+     * {@inheritDoc}
      */
     public function getContentEncoding(): ?string
     {
