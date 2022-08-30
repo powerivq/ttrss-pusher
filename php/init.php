@@ -211,15 +211,16 @@ class Pusher extends Plugin implements IHandler {
             WHERE last_accessed<NOW()-INTERVAL 30 DAY')->execute([]);
     }
 
-    function csrf_ignore($method) {
+    function csrf_ignore($method): bool {
         return true;
     }
 
-    function before($method) {
+    function before($method): bool {
         return true;
     }
 
-    function after() {
+    function after(): bool {
+        return true;
     }
 
     function get_js() {
