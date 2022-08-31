@@ -1,5 +1,10 @@
 {
     "require": {
         "minishlink/web-push": "^7.0"
+    },
+    "config": {
+        "platform": {
+            "php": "7.3"
+        }
     }
 }
