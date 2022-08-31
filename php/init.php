@@ -138,7 +138,7 @@ class Pusher extends Plugin implements IHandler {
         $browser_ids = [];
         foreach ($subscriptions as $browser_id => $subscription) {
             $browser_ids[] = $browser_id;
-            $webPush->sendNotification($subscription, $payload);
+            $webPush->queueNotification($subscription, $payload);
         }
 
         $unsub_map = [];
