@@ -19,11 +19,14 @@ in addition to what Tiny Tiny RSS already requires:
 2. openssl
 3. gmp
 
+### Important!
+The module works only with MySQL/MariaDB database. It does not work with the default PostgreSQL database.
+
 ## How to use
 1. Ensure you have all the runtime requirements stated above. If not, install them.
-2. Download the [latest release](https://github.com/powerivq/ttrss-pusher/releases/tag/0.9) here
-3. Extract it into your Tiny Tiny RSS plugins.local folder
-4. It is a system plugin, therefore you need to [turn it on in the config.php file](https://git.tt-rss.org/fox/tt-rss/wiki/Plugins). The plugin's name is `pusher`
+2. Download the [latest release](https://github.com/powerivq/ttrss-pusher/releases/latest) here (release.zip)
+3. Go to Tiny Tiny RSS plugins.local folder, create folder named `pusher` and extract into it your `release.zip`
+4. It is a system plugin, therefore you need to [turn it on in the config.php file](https://tt-rss.org/wiki/Plugins). The plugin's name is `pusher` (plugin files must be in the folder with this exactly name)
 5. In user preference, create a filter that triggers this plugin to send push notifications
 6. In order to display HTTP images, you need to turn on `af_proxy_http` plugin
 
