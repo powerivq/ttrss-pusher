@@ -144,7 +144,9 @@ class Pusher extends Plugin implements IHandler {
         $unsub_map = [];
         Debug::log(sprintf('Pushing %s', $article['title']));
         foreach ($webPush->flush() as $index => $report) {
-            if ($report->isSubscriptionExpired()) {
+            if ($report->isSubscriptionExpired()
+                    || !$report->isSuccess() && strpos($report->getReason(), '401 Unauthorized') !== false) {
+                Debug::log('Unsubscribing');
                 $unsub_map[$browser_id] = null;
             }
             Debug::log(($report->isSuccess() ? 'Succeed' : 'Failed') . ': ' . $report->getReason());
@@ -167,7 +169,7 @@ class Pusher extends Plugin implements IHandler {
     function update_subscription() {
         $subscription_arr = json_decode($_POST['subscription'], true);
         $browser_id = $_POST['browserId'];
-        error_log(print_r($subscription_arr, true));
+        error_log("Subscribing: ". $browser_id);
         $this->set_subscription_for_browser(
             array($browser_id =>
                 $subscription_arr ? Subscription::create($subscription_arr) : null
