@@ -12,6 +12,7 @@ class Pusher extends Plugin implements IHandler {
     const SUBSCRIPTION_PROP = 'subscription';
     
     private $plugin_host;
+    private $db_type;
 
     function about() {
         return array(1.0,
@@ -23,6 +24,7 @@ class Pusher extends Plugin implements IHandler {
 
     function init($host) {
         $this->plugin_host = $host;
+        $this->db_type = $this->detect_db_type();
         $host->add_handler('pusher', 'update_subscription', $this);
         $host->add_handler('pusher', 'mark_read', $this);
         $host->add_filter_action($this, 'push', 'Send push notification to browsers');
@@ -43,8 +45,15 @@ class Pusher extends Plugin implements IHandler {
         $this->plugin_host->set($this, self::PUBLIC_KEY_PROP, $keys[self::PUBLIC_KEY_PROP]);
     }
 
+    function detect_db_type() {
+        $pdo = $this->plugin_host->get_pdo();
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        return $driver;
+    }
+
     function init_database() {
-        $sth = $this->plugin_host->get_pdo()->prepare(file_get_contents(__DIR__ . '/init.sql'));
+        $sql_file = $this->db_type === 'pgsql' ? 'init_pgsql.sql' : 'init_mysql.sql';
+        $sth = $this->plugin_host->get_pdo()->prepare(file_get_contents(__DIR__ . '/' . $sql_file));
         $sth->execute([]);
     }
 
@@ -96,13 +105,13 @@ class Pusher extends Plugin implements IHandler {
         $find_stmt->execute([$uid, $sha1]);
         $result = $find_stmt->fetch();
         if ($result[0]) {
-            $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_pusher
-                SET last_accessed=NOW() WHERE uid=? AND url_hash=?')
+            $this->plugin_host->get_pdo()->prepare("UPDATE ttrss_pusher
+                SET last_accessed=NOW() WHERE uid=? AND url_hash=?")
                 ->execute([$uid, $sha1]);
             return true;
         }
-        $this->plugin_host->get_pdo()->prepare('INSERT INTO ttrss_pusher
-            (url_hash, last_accessed, uid) VALUES (?, NOW(), ?)')
+        $this->plugin_host->get_pdo()->prepare("INSERT INTO ttrss_pusher
+            (url_hash, last_accessed, uid) VALUES (?, NOW(), ?)")
             ->execute([$sha1, $uid]);
         return false;
     }
@@ -161,9 +170,17 @@ class Pusher extends Plugin implements IHandler {
         $uid = $_SESSION['uid'];
         $guid = $_POST['guid'];
 
-        $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_user_entries ue
-            JOIN ttrss_entries e ON (e.id = ue.ref_id)
-            SET ue.unread=0 WHERE e.guid=? AND ue.owner_uid=?')->execute([$guid, $uid]);
+        if ($this->db_type === 'pgsql') {
+            $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_user_entries 
+                SET unread=0 
+                FROM ttrss_entries e 
+                WHERE ttrss_user_entries.ref_id = e.id 
+                AND e.guid=? AND ttrss_user_entries.owner_uid=?')->execute([$guid, $uid]);
+        } else {
+            $this->plugin_host->get_pdo()->prepare('UPDATE ttrss_user_entries ue
+                JOIN ttrss_entries e ON (e.id = ue.ref_id)
+                SET ue.unread=0 WHERE e.guid=? AND ue.owner_uid=?')->execute([$guid, $uid]);
+        }
     }
 
     function update_subscription() {
@@ -209,8 +226,9 @@ class Pusher extends Plugin implements IHandler {
     }
 
     function hook_house_keeping() {
-        $this->plugin_host->get_pdo()->prepare('DELETE FROM ttrss_pusher 
-            WHERE last_accessed<NOW()-INTERVAL 30 DAY')->execute([]);
+        $interval_condition = $this->get_interval_syntax('30 DAY');
+        $this->plugin_host->get_pdo()->prepare("DELETE FROM ttrss_pusher 
+            WHERE last_accessed < $interval_condition")->execute([]);
     }
 
     function csrf_ignore($method): bool {
@@ -233,5 +251,13 @@ class Pusher extends Plugin implements IHandler {
 
     function api_version() {
         return 2;
+    }
+
+    function get_interval_syntax($interval) {
+        if ($this->db_type === 'pgsql') {
+            return "CURRENT_TIMESTAMP - INTERVAL '$interval'";
+        } else {
+            return "NOW() - INTERVAL $interval";
+        }
     }
 }
