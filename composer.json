@@ -1,6 +1,7 @@
 {
     "require": {
-        "minishlink/web-push": "^7.0"
+        "minishlink/web-push": "^7.0",
+        "guzzlehttp/promises": "^2.0"
     },
     "config": {
         "platform": {
